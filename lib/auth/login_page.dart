@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:hrms/controllers/LoginController.dart';
 
 class LoginPage extends StatelessWidget {
   LoginPage({super.key});
 
-  LoginController loginController = Get.put(LoginController());
+  final LoginController loginController = Get.put(LoginController());
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +18,7 @@ class LoginPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: Colors.black12,
                 blurRadius: 12,
@@ -45,6 +44,7 @@ class LoginPage extends StatelessWidget {
               // Email
               TextField(
                 controller: loginController.emailController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   hintText: "Email",
                   prefixIcon: const Icon(Icons.email_outlined),
@@ -52,6 +52,7 @@ class LoginPage extends StatelessWidget {
                   fillColor: const Color(0xFFF1F3F6),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
@@ -68,14 +69,15 @@ class LoginPage extends StatelessWidget {
                   fillColor: const Color(0xFFF1F3F6),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // Login Button
-              SizedBox(
+              // Login Button with Loading State
+              Obx(() => SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
@@ -85,29 +87,29 @@ class LoginPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: () async {
+                  onPressed: loginController.isLoading.value
+                      ? null
+                      : () async {
                     final email = loginController.emailController.text;
                     final password = loginController.passwordController.text;
 
-                    final result = await loginController.login(email, password);
-
-                    Get.snackbar(
-                      "Login",
-                      result,
-                      snackPosition: SnackPosition.BOTTOM,
-                    );
-
-                    if (result == "Login Successful") {
-                      //Get.offAllNamed('/dashboard'); // update route as needed
-                      print("Login Successful");
-                    }
+                    await loginController.login(email, password);
                   },
-                  child: const Text(
+                  child: loginController.isLoading.value
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                      : const Text(
                     "Login",
                     style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),
-              ),
+              )),
             ],
           ),
         ),
