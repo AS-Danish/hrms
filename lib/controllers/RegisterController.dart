@@ -74,12 +74,15 @@ class RegisterController extends GetxController {
       final user = userCredential.user;
 
       if (user != null) {
+        // Define default role
+        String defaultRole = 'hr'; // or 'employee' - choose your default
+
         // Save user data to Firestore
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'name': name.trim(),
           'email': email.trim(),
-          'role': 'admin', // Default role
+          'role': defaultRole, // Default role
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
           'isActive': true,
@@ -88,8 +91,8 @@ class RegisterController extends GetxController {
         // Update display name
         await user.updateDisplayName(name.trim());
 
-        // Save login state
-        await _authService.saveLoginState(user.uid);
+        // Save login state WITH ROLE - FIXED!
+        await _authService.saveLoginState(user.uid, defaultRole);
 
         Get.snackbar(
           "Success",
