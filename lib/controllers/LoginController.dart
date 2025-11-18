@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Add this import
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hrms/views/DashboardPage.dart';
@@ -12,6 +13,7 @@ class LoginController extends GetxController {
   final passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final AuthService _authService = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Add this
 
   var isLoading = false.obs;
 
@@ -58,7 +60,11 @@ class LoginController extends GetxController {
         password: password.trim(),
       );
 
-      await _authService.saveLoginState(cred.user!.uid);
+      // Fetch user role from Firestore
+      String role = await _fetchUserRole(cred.user!.uid);
+
+      // Save login state with role
+      await _authService.saveLoginState(cred.user!.uid, role);
 
       Get.snackbar(
         "Success",
@@ -106,6 +112,26 @@ class LoginController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // Add this method to fetch user role from Firestore
+  Future<String> _fetchUserRole(String uid) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users') // Change this to your collection name
+          .doc(uid)
+          .get();
+
+      if (userDoc.exists) {
+        // Change 'role' to match your field name in Firestore
+        return userDoc.get('role')?.toString().toLowerCase() ?? 'employee';
+      } else {
+        return 'employee'; // Default role if user document doesn't exist
+      }
+    } catch (e) {
+      print('Error fetching user role: $e');
+      return 'employee'; // Default role on error
     }
   }
 
