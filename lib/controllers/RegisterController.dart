@@ -2,8 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hrms/views/DashboardPage.dart';
-import '../services/auth_service.dart';
 
 class RegisterController extends GetxController {
   final nameController = TextEditingController();
@@ -13,7 +11,6 @@ class RegisterController extends GetxController {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AuthService _authService = AuthService();
 
   var isLoading = false.obs;
   var obscurePassword = true.obs;
@@ -82,7 +79,8 @@ class RegisterController extends GetxController {
           'uid': user.uid,
           'name': name.trim(),
           'email': email.trim(),
-          'role': defaultRole, // Default role
+          'role': defaultRole,
+          'onboardingCompleted': false, // Set to false for new users
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
           'isActive': true,
@@ -90,9 +88,6 @@ class RegisterController extends GetxController {
 
         // Update display name
         await user.updateDisplayName(name.trim());
-
-        // Save login state WITH ROLE - FIXED!
-        await _authService.saveLoginState(user.uid, defaultRole);
 
         Get.snackbar(
           "Success",
@@ -102,8 +97,7 @@ class RegisterController extends GetxController {
           colorText: Colors.white,
         );
 
-        // Navigate to Dashboard
-        Get.offAll(() => Dashboard());
+        // Firebase authStateChanges will automatically trigger navigation
       }
 
     } on FirebaseAuthException catch (e) {
