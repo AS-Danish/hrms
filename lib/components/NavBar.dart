@@ -43,7 +43,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
   Future<void> _loadUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _userRole = prefs.getString('role') ?? '';
+      _userRole = prefs.getString('userRole') ?? '';
       _isLoading = false;
     });
   }
