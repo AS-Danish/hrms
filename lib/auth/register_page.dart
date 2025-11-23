@@ -11,7 +11,6 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMixin {
-  final RegisterController registerController = Get.put(RegisterController());
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
@@ -20,6 +19,10 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
+
+    // Initialize controller with lazyPut instead of put
+    Get.lazyPut(() => RegisterController(), fenix: true);
+
 
     _fadeController = AnimationController(
       vsync: this,
@@ -53,6 +56,8 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final RegisterController registerController = Get.find<RegisterController>();
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
