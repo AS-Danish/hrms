@@ -1,8 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:hrms/auth/register_page.dart';
+import 'package:hrms/auth/login_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../views/DashboardPage.dart';
 import '../views/OnboardingScreen.dart';
@@ -40,6 +39,10 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, authSnapshot) {
+        debugPrint('AuthWrapper - Connection State: ${authSnapshot.connectionState}');
+        debugPrint('AuthWrapper - Has Data: ${authSnapshot.hasData}');
+        debugPrint('AuthWrapper - User: ${authSnapshot.data?.email}');
+
         // Show loading while checking auth state
         if (authSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -49,84 +52,87 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // If user is logged in, listen to Firestore changes
-        if (authSnapshot.hasData && authSnapshot.data != null) {
-          final uid = authSnapshot.data!.uid;
-
-          return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .snapshots(),
-            builder: (context, userSnapshot) {
-              // Show loading while fetching data
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              // If data is fetched successfully
-              if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                final data = userSnapshot.data!.data() as Map<String, dynamic>?;
-                final onboardingCompleted = data?['onboardingCompleted'] as bool? ?? false;
-
-                // Save data to SharedPreferences asynchronously
-                _saveUserDataToPrefs(uid, data);
-
-                debugPrint('AuthWrapper: onboardingCompleted = $onboardingCompleted');
-
-                // Check if onboarding is completed
-                if (!onboardingCompleted) {
-                  debugPrint('Showing OnboardingScreen');
-                  return const OnboardingScreen();
-                } else {
-                  debugPrint('Showing Dashboard');
-                  return Dashboard();
-                }
-              }
-
-              // If data fetch failed, show error
-              return Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 60,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Failed to load user data',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        userSnapshot.error?.toString() ?? 'Please contact administrator',
-                        style: const TextStyle(color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                        },
-                        child: const Text('Sign Out'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
+        // If user is NOT logged in, show LoginPage
+        if (!authSnapshot.hasData || authSnapshot.data == null) {
+          debugPrint('No authenticated user - showing RegisterPage');
+          return const LoginPage(); // Use const here
         }
 
-        // Otherwise show register/login page
-        return RegisterPage();
+        // User is logged in - fetch their Firestore data
+        final uid = authSnapshot.data!.uid;
+        debugPrint('User authenticated: $uid');
+
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .snapshots(),
+          builder: (context, userSnapshot) {
+
+            // Show loading while fetching data
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            // If data is fetched successfully
+            if (userSnapshot.hasData && userSnapshot.data!.exists) {
+              final data = userSnapshot.data!.data() as Map<String, dynamic>?;
+              final onboardingCompleted = data?['onboardingCompleted'] as bool? ?? false;
+
+
+              // Save data to SharedPreferences asynchronously
+              _saveUserDataToPrefs(uid, data);
+
+              // Check if onboarding is completed
+              if (!onboardingCompleted) {
+                return const OnboardingScreen();
+              } else {
+                return const Dashboard();
+              }
+            }
+
+            // If data fetch failed, show error
+            debugPrint('Error loading user data: ${userSnapshot.error}');
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 60,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Failed to load user data',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      userSnapshot.error?.toString() ?? 'Please contact administrator',
+                      style: const TextStyle(color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.clear();
+                      },
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }
