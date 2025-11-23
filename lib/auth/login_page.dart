@@ -11,7 +11,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
-  final LoginController loginController = Get.put(LoginController());
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
@@ -20,6 +19,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    Get.lazyPut(() => LoginController(), fenix: true);
 
     _fadeController = AnimationController(
       vsync: this,
@@ -53,6 +54,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+
+    final LoginController loginController = Get.find<LoginController>();
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

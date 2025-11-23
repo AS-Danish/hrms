@@ -88,10 +88,10 @@ class LoginController extends GetxController {
     Get.offAll(() => LoginPage());
   }
 
-  @override
+  /*@override
   void onClose() {
     emailController.dispose();
     passwordController.dispose();
     super.onClose();
-  }
+  }*/
 }
