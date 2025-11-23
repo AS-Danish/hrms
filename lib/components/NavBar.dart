@@ -4,8 +4,11 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hrms/controllers/LoginController.dart';
 
+import '../Layout/MainLayout.dart';
 import '../auth/login_page.dart';
+import '../binding/HRManagementBinding.dart';
 import '../controllers/RegisterController.dart';
+import '../views/HRManagementPage.dart';
 
 class NavBar extends StatefulWidget {
   final String? currentRoute;
@@ -132,7 +135,27 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.people_rounded,
             title: "Employee Management",
             route: '/employee',
-            onTap: () => _navigateTo(context, '/employee'),
+            onTap: () {
+              setState(() {
+                _selectedRoute = '/employee';
+              });
+
+              // Close drawer on mobile
+              final isDesktop = MediaQuery.of(context).size.width >= 1024;
+              if (!isDesktop) {
+                Navigator.pop(context);
+              }
+
+              // Navigate using GetX with MainLayout wrapper
+              Get.off(
+                    () => MainLayout(
+                  currentRoute: '/employee',
+                  title: 'Employee Management',
+                  child: const HRManagementPage(),
+                ),
+                binding: HRManagementBinding(),
+              );
+            },
           ),
           _buildDrawerItem(
             context,
