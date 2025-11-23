@@ -6,8 +6,11 @@ import '../controllers/onboardingController.dart';
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
+
+
   @override
   Widget build(BuildContext context) {
+
     final OnboardingController controller = Get.put(OnboardingController());
 
     return Scaffold(

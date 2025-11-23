@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../auth/AuthWrapper.dart';
-
 class OnboardingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -191,7 +189,7 @@ class OnboardingController extends GetxController {
     }
   }
 
-  @override
+  /*@override
   void onClose() {
     fullNameController.dispose();
     dateOfBirthController.dispose();
@@ -213,5 +211,5 @@ class OnboardingController extends GetxController {
     joiningDateController.dispose();
     employeeIdController.dispose();
     super.onClose();
-  }
+  }*/
 }
