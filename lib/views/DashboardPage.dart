@@ -1,46 +1,42 @@
 import 'package:flutter/material.dart';
-import '../Layout/MainLayout.dart';
 
 class Dashboard extends StatelessWidget {
   const Dashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MainLayout(
-      currentRoute: '/dashboard',
-      title: 'Dashboard',
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatsCards(context),
-              const SizedBox(height: 28),
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF212121),
-                ),
+    // REMOVED MainLayout wrapper - Dashboard is just the content now!
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStatsCards(context),
+            const SizedBox(height: 28),
+            const Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF212121),
               ),
-              const SizedBox(height: 14),
-              _buildQuickActions(context),
-              const SizedBox(height: 28),
-              const Text(
-                'Recent Activity',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF212121),
-                ),
+            ),
+            const SizedBox(height: 14),
+            _buildQuickActions(context),
+            const SizedBox(height: 28),
+            const Text(
+              'Recent Activity',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF212121),
               ),
-              const SizedBox(height: 14),
-              _buildRecentActivity(),
-              const SizedBox(height: 16),
-            ],
-          ),
+            ),
+            const SizedBox(height: 14),
+            _buildRecentActivity(),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

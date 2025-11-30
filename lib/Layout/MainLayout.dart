@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../components/NavBar.dart';
 
-class MainLayout extends StatelessWidget {
+// Global key to access MainLayout state from anywhere
+final GlobalKey<_MainLayoutState> mainLayoutKey = GlobalKey<_MainLayoutState>();
+
+class MainLayout extends StatefulWidget {
   final Widget child;
   final String currentRoute;
   final String title;
@@ -15,6 +19,42 @@ class MainLayout extends StatelessWidget {
     this.actions,
   });
 
+  // Static method to update the layout without navigation
+  static void updateContent({
+    required String route,
+    required String title,
+    required Widget child,
+  }) {
+    if (mainLayoutKey.currentState != null) {
+      mainLayoutKey.currentState!.updatePage(route, title, child);
+    }
+  }
+
+  @override
+  State<MainLayout> createState() => _MainLayoutState();
+}
+
+class _MainLayoutState extends State<MainLayout> {
+  late String _currentRoute;
+  late String _currentTitle;
+  late Widget _currentChild;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentRoute = widget.currentRoute;
+    _currentTitle = widget.title;
+    _currentChild = widget.child;
+  }
+
+  void updatePage(String route, String title, Widget child) {
+    setState(() {
+      _currentRoute = route;
+      _currentTitle = title;
+      _currentChild = child;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 1024;
@@ -23,7 +63,7 @@ class MainLayout extends StatelessWidget {
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text(
-          title,
+          _currentTitle,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -43,7 +83,7 @@ class MainLayout extends StatelessWidget {
             ),
           ),
         ),
-        actions: actions ??
+        actions: widget.actions ??
             [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
@@ -56,18 +96,18 @@ class MainLayout extends StatelessWidget {
               const SizedBox(width: 8),
             ],
       ),
-      drawer: isDesktop ? null : NavBar(currentRoute: currentRoute),
+      drawer: isDesktop ? null : NavBar(currentRoute: _currentRoute),
       body: Row(
         children: [
           // Persistent Sidebar for Desktop
           if (isDesktop)
             SizedBox(
               width: 280,
-              child: NavBar(currentRoute: currentRoute),
+              child: NavBar(currentRoute: _currentRoute),
             ),
           // Main Content Area
           Expanded(
-            child: child,
+            child: _currentChild,
           ),
         ],
       ),

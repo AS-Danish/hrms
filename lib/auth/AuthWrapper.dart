@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hrms/auth/login_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../Layout/MainLayout.dart';
 import '../views/DashboardPage.dart';
 import '../views/OnboardingScreen.dart';
 
@@ -54,8 +55,8 @@ class AuthWrapper extends StatelessWidget {
 
         // If user is NOT logged in, show LoginPage
         if (!authSnapshot.hasData || authSnapshot.data == null) {
-          debugPrint('No authenticated user - showing RegisterPage');
-          return const LoginPage(); // Use const here
+          debugPrint('No authenticated user - showing LoginPage');
+          return const LoginPage();
         }
 
         // User is logged in - fetch their Firestore data
@@ -83,7 +84,6 @@ class AuthWrapper extends StatelessWidget {
               final data = userSnapshot.data!.data() as Map<String, dynamic>?;
               final onboardingCompleted = data?['onboardingCompleted'] as bool? ?? false;
 
-
               // Save data to SharedPreferences asynchronously
               _saveUserDataToPrefs(uid, data);
 
@@ -91,7 +91,13 @@ class AuthWrapper extends StatelessWidget {
               if (!onboardingCompleted) {
                 return const OnboardingScreen();
               } else {
-                return const Dashboard();
+                // IMPORTANT: Wrap Dashboard in MainLayout with the global key!
+                return MainLayout(
+                  key: mainLayoutKey,  // <-- This is critical!
+                  currentRoute: '/dashboard',
+                  title: 'Dashboard',
+                  child: const Dashboard(),
+                );
               }
             }
 

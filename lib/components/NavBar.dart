@@ -6,9 +6,16 @@ import 'package:hrms/controllers/LoginController.dart';
 
 import '../Layout/MainLayout.dart';
 import '../auth/login_page.dart';
+import '../binding/HRLeaveManagementBinding.dart';
 import '../binding/HRManagementBinding.dart';
+import '../binding/LeaveRequestBinding.dart';
 import '../controllers/RegisterController.dart';
+import '../controllers/LeaveRequestController.dart';
+import '../views/HRLeaveManagementPage.dart';
 import '../views/HRManagementPage.dart';
+import '../views/LeaveRequestPage.dart';
+import '../views/MyLeaves.dart';
+import '../views/DashboardPage.dart';
 
 class NavBar extends StatefulWidget {
   final String? currentRoute;
@@ -79,10 +86,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         ),
         child: Column(
           children: [
-            // Enhanced Header
             _buildHeader(isDesktop),
-
-            // Menu Items with Animation
             Expanded(
               child: _isLoading
                   ? const Center(
@@ -99,8 +103,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
                 ),
               ),
             ),
-
-            // Bottom Section
             _buildBottomSection(context, isDesktop),
           ],
         ),
@@ -111,21 +113,23 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
   List<Widget> _buildMenuItems(BuildContext context) {
     List<Widget> menuItems = [];
 
-    // Section Header
     menuItems.add(_buildSectionHeader("MAIN MENU"));
 
-    // Common Dashboard for all roles
     menuItems.add(
       _buildDrawerItem(
         context,
         icon: Icons.dashboard_rounded,
         title: "Dashboard",
         route: '/dashboard',
-        onTap: () => _navigateTo(context, '/dashboard'),
+        onTap: () => _navigateToPage(
+          context,
+          '/dashboard',
+          'Dashboard',
+          const Dashboard(),
+        ),
       ),
     );
 
-    // Role-based menu items
     switch (_userRole.toLowerCase()) {
       case 'admin':
         menuItems.add(_buildSectionHeader("ADMINISTRATION"));
@@ -135,34 +139,13 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.people_rounded,
             title: "Employee Management",
             route: '/employee',
-            onTap: () {
-              setState(() {
-                _selectedRoute = '/employee';
-              });
-
-              // Close drawer on mobile
-              final isDesktop = MediaQuery.of(context).size.width >= 1024;
-              if (!isDesktop) {
-                Navigator.pop(context);
-              }
-
-              // Navigate using GetX with MainLayout wrapper
-              Get.off(
-                    () => MainLayout(
-                  currentRoute: '/employee',
-                  title: 'Employee Management',
-                  child: const HRManagementPage(),
-                ),
-                binding: HRManagementBinding(),
-              );
-            },
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.settings_rounded,
-            title: "Settings",
-            route: '/settings',
-            onTap: () => _navigateTo(context, '/settings'),
+            onTap: () => _navigateToPage(
+              context,
+              '/employee',
+              'Employee Management',
+              const HRManagementPage(),
+              binding: HRManagementBinding(),
+            ),
           ),
         ]);
         break;
@@ -175,14 +158,25 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.work_rounded,
             title: "Job Management",
             route: '/jobs',
-            onTap: () => _navigateTo(context, '/jobs'),
+            onTap: () => _navigateToPage(
+              context,
+              '/jobs',
+              'Job Management',
+              const Center(child: Text('Job Management - Coming Soon')),
+            ),
           ),
           _buildDrawerItem(
             context,
-            icon: Icons.track_changes_rounded,
-            title: "Application Tracking",
-            route: '/tracking',
-            onTap: () => _navigateTo(context, '/tracking'),
+            icon: Icons.event_available_rounded,
+            title: "Leave Management",
+            route: '/leave-management',
+            onTap: () => _navigateToPage(
+              context,
+              '/leave-management',
+              'Leave Management',
+              const HRLeaveManagementPage(),
+              binding: HRLeaveManagementBinding(),
+            ),
           ),
         ]);
         break;
@@ -195,14 +189,25 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.people_rounded,
             title: "Employee Management",
             route: '/employee',
-            onTap: () => _navigateTo(context, '/employee'),
+            onTap: () => _navigateToPage(
+              context,
+              '/employee',
+              'Employee Management',
+              const HRManagementPage(),
+              binding: HRManagementBinding(),
+            ),
           ),
           _buildDrawerItem(
             context,
             icon: Icons.monetization_on_rounded,
             title: "Payroll Management",
             route: '/payroll',
-            onTap: () => _navigateTo(context, '/payroll'),
+            onTap: () => _navigateToPage(
+              context,
+              '/payroll',
+              'Payroll Management',
+              const Center(child: Text('Payroll Management - Coming Soon')),
+            ),
           ),
         ]);
         break;
@@ -212,17 +217,46 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         menuItems.addAll([
           _buildDrawerItem(
             context,
-            icon: Icons.person_rounded,
-            title: "My Profile",
-            route: '/profile',
-            onTap: () => _navigateTo(context, '/profile'),
-          ),
-          _buildDrawerItem(
-            context,
             icon: Icons.calendar_today_rounded,
             title: "My Attendance",
             route: '/attendance',
-            onTap: () => _navigateTo(context, '/attendance'),
+            onTap: () => _navigateToPage(
+              context,
+              '/attendance',
+              'My Attendance',
+              const Center(child: Text('My Attendance - Coming Soon')),
+            ),
+          ),
+        ]);
+
+        // LEAVE SECTION FOR EMPLOYEES
+        menuItems.add(_buildSectionHeader("LEAVE MANAGEMENT"));
+        menuItems.addAll([
+          _buildDrawerItem(
+            context,
+            icon: Icons.add_circle_outline_rounded,
+            title: "Request Leave",
+            route: '/request-leave',
+            onTap: () => _navigateToPage(
+              context,
+              '/request-leave',
+              'Request Leave',
+              const LeaveRequestPage(),
+              binding: LeaveRequestBinding(),
+            ),
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.history_rounded,
+            title: "My Leaves",
+            route: '/my-leaves',
+            onTap: () => _navigateToPage(
+              context,
+              '/my-leaves',
+              'My Leaves',
+              const MyLeavesPage(),
+              binding: LeaveRequestBinding(),
+            ),
           ),
         ]);
         break;
@@ -234,12 +268,47 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.settings_rounded,
             title: "Settings",
             route: '/settings',
-            onTap: () => _navigateTo(context, '/settings'),
+            onTap: () => _navigateToPage(
+              context,
+              '/settings',
+              'Settings',
+              const Center(child: Text('Settings - Coming Soon')),
+            ),
           ),
         );
     }
 
     return menuItems;
+  }
+
+  // NEW UNIFIED NAVIGATION METHOD
+  void _navigateToPage(
+      BuildContext context,
+      String route,
+      String title,
+      Widget child, {
+        Bindings? binding,
+      }) {
+    // Update selected route
+    setState(() {
+      _selectedRoute = route;
+    });
+
+    // Close drawer on mobile
+    final isDesktop = MediaQuery.of(context).size.width >= 1024;
+    if (!isDesktop) {
+      Get.back();
+    }
+
+    // Navigate to the new page
+    Get.offAll(
+          () => MainLayout(
+        currentRoute: route,
+        title: title,
+        child: child,
+      ),
+      binding: binding,
+    );
   }
 
   Widget _buildSectionHeader(String title) {
@@ -292,7 +361,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar with shadow
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -318,8 +386,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Name
           Text(
             displayName,
             style: const TextStyle(
@@ -332,8 +398,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-
-          // Email
           Text(
             email,
             style: TextStyle(
@@ -344,8 +408,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-
-          // Role Badge
           if (_userRole.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -437,7 +499,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             ),
             child: Row(
               children: [
-                // Icon
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -455,8 +516,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(width: 16),
-
-                // Title
                 Expanded(
                   child: Text(
                     title,
@@ -470,8 +529,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
                     ),
                   ),
                 ),
-
-                // Selected Indicator
                 if (isSelected)
                   Container(
                     width: 4,
@@ -554,21 +611,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
     );
   }
 
-  void _navigateTo(BuildContext context, String route) {
-    setState(() {
-      _selectedRoute = route;
-    });
-
-    // Close drawer on mobile
-    final isDesktop = MediaQuery.of(context).size.width >= 1024;
-    if (!isDesktop) {
-      Navigator.pop(context);
-    }
-
-    // Navigate to the route
-    Navigator.pushReplacementNamed(context, route);
-  }
-
   void _handleLogout(BuildContext context, bool isDesktop) {
     if (!isDesktop) {
       Navigator.pop(context);
@@ -637,18 +679,14 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             onPressed: () async {
               Navigator.pop(context);
 
-              // Delete controllers
               Get.delete<LoginController>();
               Get.delete<RegisterController>();
 
-              // Perform logout
               await FirebaseAuth.instance.signOut();
 
-              // Clear login state
               final prefs = await SharedPreferences.getInstance();
               await prefs.clear();
 
-              // Navigate to login page
               Get.offAll(() => const LoginPage());
             },
             style: ElevatedButton.styleFrom(
