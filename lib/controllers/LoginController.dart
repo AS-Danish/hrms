@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:math' show cos, sqrt, asin;
+import 'package:intl/intl.dart';
 import '../auth/AuthWrapper.dart';
 import '../auth/login_page.dart';
 
@@ -16,21 +17,90 @@ class LoginController extends GetxController {
 
   var isLoading = false.obs;
 
-  // Office location coordinates (Change these to your office location)
-  static const double OFFICE_LATITUDE = 19.8762; // Replace with your office latitude
-  static const double OFFICE_LONGITUDE = 75.3433; // Replace with your office longitude
-  static const double ALLOWED_RADIUS_METERS = 50.0; // 50 meters radius
+  // Office location coordinates
+  static const double OFFICE_LATITUDE = 19.8895;
+  static const double OFFICE_LONGITUDE = 75.3453;
+  static const double ALLOWED_RADIUS_METERS = 50.0;
 
-  // DEBUG MODE - Set to true during development to bypass location check
-  // IMPORTANT: Set to false in production!
-  static const bool DEBUG_MODE = false; // Change to false for production
+  // Time restrictions for employee login (24-hour format)
+  static const int LOGIN_START_HOUR = 11;
+  static const int LOGIN_START_MINUTE = 00;
+  static const int LOGIN_END_HOUR = 13;
+  static const int LOGIN_END_MINUTE = 15;
+
+  // DEBUG MODE - Set to false in production!
+  static const bool DEBUG_MODE = false;
+
+  /// Check if current time is within allowed login window
+  bool _isWithinLoginTime() {
+    final now = DateTime.now();
+
+    final startTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      LOGIN_START_HOUR,
+      LOGIN_START_MINUTE,
+    );
+
+    final endTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      LOGIN_END_HOUR,
+      LOGIN_END_MINUTE,
+    );
+
+    debugPrint('Current time: ${DateFormat('HH:mm').format(now)}');
+    debugPrint('Allowed window: ${DateFormat('HH:mm').format(startTime)} - ${DateFormat('HH:mm').format(endTime)}');
+
+    return now.isAfter(startTime) && now.isBefore(endTime);
+  }
+
+  /// Mark attendance in Firestore
+  Future<bool> _markAttendance({
+    required String userId,
+    required String userName,
+    required String userRole,
+    required String email,
+    required Position location,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final today = DateFormat('yyyy-MM-dd').format(now);
+      final docId = '${userId}_$today';
+
+      // Use set with merge to avoid overwriting if somehow called twice
+      await _firestore.collection('attendance').doc(docId).set({
+        'userId': userId,
+        'userName': userName,
+        'userRole': userRole,
+        'email': email,
+        'date': today,
+        'timestamp': FieldValue.serverTimestamp(),
+        'loginTime': DateFormat('HH:mm:ss').format(now),
+        'status': 'present',
+        'location': {
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+          'accuracy': location.accuracy,
+        },
+        'markedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      debugPrint('✅ Attendance marked successfully for $userName on $today');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error marking attendance: $e');
+      return false;
+    }
+  }
 
   /// Check if location services are enabled and permissions are granted
   Future<bool> _checkLocationPermission() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Check if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       Get.snackbar(
@@ -44,7 +114,6 @@ class LoginController extends GetxController {
       return false;
     }
 
-    // Check location permissions
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -79,7 +148,6 @@ class LoginController extends GetxController {
   /// Get current device location with better error handling
   Future<Position?> _getCurrentLocation() async {
     try {
-      // Show a loading indicator
       Get.dialog(
         WillPopScope(
           onWillPop: () async => false,
@@ -109,24 +177,21 @@ class LoginController extends GetxController {
 
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 30), // Increased timeout
+        timeLimit: const Duration(seconds: 30),
       );
 
-      // Close loading dialog
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
 
       return position;
     } on TimeoutException catch (e) {
-      // Close loading dialog
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
 
       debugPrint('Location timeout: $e');
 
-      // Show retry dialog
       bool? shouldRetry = await Get.dialog<bool>(
         AlertDialog(
           title: const Text('Location Timeout'),
@@ -151,13 +216,11 @@ class LoginController extends GetxController {
       );
 
       if (shouldRetry == true) {
-        // Retry getting location
         return await _getCurrentLocation();
       }
 
       return null;
     } catch (e) {
-      // Close loading dialog
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
@@ -190,7 +253,7 @@ class LoginController extends GetxController {
 
     double c = 2 * asin(sqrt(a));
     double distanceKm = earthRadiusKm * c;
-    return distanceKm * 1000; // Convert to meters
+    return distanceKm * 1000;
   }
 
   double _degreesToRadians(double degrees) {
@@ -202,7 +265,7 @@ class LoginController extends GetxController {
   }
 
   /// Check if user is within allowed radius
-  Future<bool> _isWithinOfficeRadius(Position currentPosition) async {
+  bool _isWithinOfficeRadius(Position currentPosition) {
     double distance = _calculateDistance(
       currentPosition.latitude,
       currentPosition.longitude,
@@ -217,10 +280,9 @@ class LoginController extends GetxController {
     return distance <= ALLOWED_RADIUS_METERS;
   }
 
-  /// Get user role from email (check Firestore without signing in)
-  Future<String?> _getUserRoleByEmail(String email) async {
+  /// Get user details by email - OPTIMIZED: Single read returns all data
+  Future<Map<String, dynamic>?> _getUserDetailsByEmail(String email) async {
     try {
-      // Query Firestore to find user by email
       QuerySnapshot querySnapshot = await _firestore
           .collection('users')
           .where('email', isEqualTo: email.trim().toLowerCase())
@@ -228,11 +290,22 @@ class LoginController extends GetxController {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        Map<String, dynamic>? data = querySnapshot.docs.first.data() as Map<String, dynamic>?;
-        return data?['role'] as String?;
+        final doc = querySnapshot.docs.first;
+
+        // Get attendance status in same call
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        final attendanceDocId = '${doc.id}_$today';
+
+        return {
+          'userId': doc.id,
+          'userName': doc.get('name') ?? 'Unknown',
+          'userRole': doc.get('role') ?? 'employee',
+          'email': doc.get('email') ?? email,
+          'attendanceDocId': attendanceDocId,
+        };
       }
     } catch (e) {
-      debugPrint('Error fetching user role by email: $e');
+      debugPrint('Error fetching user details: $e');
     }
     return null;
   }
@@ -251,62 +324,69 @@ class LoginController extends GetxController {
 
     isLoading.value = true;
 
+    // Variables to store during validation (reuse after auth)
+    Position? validatedLocation;
+    Map<String, dynamic>? userDetails;
+
     try {
-      // STEP 1: Check if user is an employee BEFORE authentication
-      debugPrint('Checking user role for: $email');
-      String? userRole = await _getUserRoleByEmail(email);
+      // STEP 1: Get user details (SINGLE READ - contains role + all info)
+      debugPrint('📖 Fetching user details for: $email');
+      userDetails = await _getUserDetailsByEmail(email);
+
+      if (userDetails == null) {
+        isLoading.value = false;
+        Get.snackbar(
+          "User Not Found",
+          "No user found with this email",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      final userRole = userDetails['userRole']?.toLowerCase();
       debugPrint('User role: $userRole');
 
-      // STEP 2: If employee, verify location BEFORE signing in
-      if (userRole?.toLowerCase() == 'employee') {
-        debugPrint('Employee detected - checking location before login...');
+      // STEP 2: If employee, verify time and location BEFORE signing in
+      if (userRole == 'employee') {
+        debugPrint('👤 Employee detected - validating before login...');
 
-        // DEBUG MODE - Skip location check during development
-        if (DEBUG_MODE) {
-          debugPrint('⚠️ DEBUG MODE: Bypassing location check');
-          Get.snackbar(
-            "Debug Mode",
-            "Location check bypassed (DEBUG_MODE = true)",
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.orange,
-            colorText: Colors.white,
-            duration: const Duration(seconds: 2),
-          );
-        } else {
-          // Production mode - enforce location check BEFORE login
+        if (!DEBUG_MODE) {
+          // Check time restriction (no database call)
+          if (!_isWithinLoginTime()) {
+            isLoading.value = false;
+            final now = DateTime.now();
+            Get.snackbar(
+              "Login Time Restricted",
+              "Employees can only login between ${LOGIN_START_HOUR}:${LOGIN_START_MINUTE.toString().padLeft(2, '0')} and ${LOGIN_END_HOUR}:${LOGIN_END_MINUTE.toString().padLeft(2, '0')}.\n\nCurrent time: ${DateFormat('HH:mm').format(now)}",
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.orange,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 5),
+              icon: const Icon(Icons.access_time, color: Colors.white),
+            );
+            return;
+          }
+
+          debugPrint('✅ Time check passed');
 
           // Check location permissions
           bool hasPermission = await _checkLocationPermission();
           if (!hasPermission) {
             isLoading.value = false;
-            Get.snackbar(
-              "Permission Required",
-              "Location permission is required for employee login. Please grant permission and try again.",
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: Colors.orange,
-              colorText: Colors.white,
-              duration: const Duration(seconds: 4),
-            );
             return;
           }
 
-          // Get current location
-          Position? currentPosition = await _getCurrentLocation();
-          if (currentPosition == null) {
+          // Get current location (STORE IT - don't fetch again!)
+          validatedLocation = await _getCurrentLocation();
+          if (validatedLocation == null) {
             isLoading.value = false;
-            Get.snackbar(
-              "Location Required",
-              "Unable to verify your location. Please ensure location services are enabled and try again.",
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: Colors.orange,
-              colorText: Colors.white,
-              duration: const Duration(seconds: 4),
-            );
             return;
           }
 
           // Check if within office radius
-          bool isWithinRadius = await _isWithinOfficeRadius(currentPosition);
+          bool isWithinRadius = _isWithinOfficeRadius(validatedLocation);
           if (!isWithinRadius) {
             isLoading.value = false;
             Get.snackbar(
@@ -321,28 +401,62 @@ class LoginController extends GetxController {
             return;
           }
 
-          debugPrint('✅ Location verified - user is within office radius');
+          debugPrint('✅ Location verified - within office radius');
+        } else {
+          debugPrint('⚠️ DEBUG MODE: Bypassing time and location checks');
         }
       }
 
-      // STEP 3: Location check passed (or not needed) - Now sign in with Firebase
-      debugPrint('Proceeding with Firebase authentication...');
+      // STEP 3: Validation passed - Now authenticate with Firebase
+      debugPrint('🔐 Proceeding with Firebase authentication...');
       await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
 
-      // Login successful
-      Get.snackbar(
-        "Success",
-        "Login Successful",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-      );
+      // STEP 4: Mark attendance for employees (reuse location from validation!)
+      if (userRole == 'employee' && !DEBUG_MODE && validatedLocation != null) {
+        debugPrint('📝 Marking attendance...');
 
-      // AuthWrapper's StreamBuilder will automatically handle navigation
+        bool attendanceMarked = await _markAttendance(
+          userId: userDetails['userId'],
+          userName: userDetails['userName'],
+          userRole: userDetails['userRole'],
+          email: userDetails['email'],
+          location: validatedLocation, // Reuse validated location!
+        );
+
+        if (attendanceMarked) {
+          Get.snackbar(
+            "Success",
+            "Login Successful - Attendance Marked ✓",
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
+          );
+        } else {
+          Get.snackbar(
+            "Warning",
+            "Login successful but attendance marking failed",
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
+          );
+        }
+      } else {
+        // Non-employee or debug mode
+        Get.snackbar(
+          "Success",
+          "Login Successful",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+
       Get.offAll(() => const AuthWrapper());
 
     } on FirebaseAuthException catch (e) {
@@ -375,6 +489,7 @@ class LoginController extends GetxController {
         colorText: Colors.white,
       );
     } catch (e) {
+      debugPrint('❌ Unexpected error: $e');
       Get.snackbar(
         "Error",
         "Unexpected Error: ${e.toString()}",
