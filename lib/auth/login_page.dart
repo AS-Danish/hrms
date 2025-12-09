@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hrms/auth/register_page.dart';
 import 'package:hrms/controllers/LoginController.dart';
 
 class LoginPage extends StatefulWidget {
@@ -218,47 +217,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           )),
 
                           const SizedBox(height: 24),
-
-                          // Register Link
-                          Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Not registered yet? ",
-                                  style: TextStyle(
-                                    color: Color(0xFF64748B),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () {
-                                    // Navigate to registration page
-                                    // Get.toNamed('/register');
-                                    Get.to(RegisterPage());
-                                  },
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 2,
-                                    ),
-                                    child: const Text(
-                                      "Register now",
-                                      style: TextStyle(
-                                        color: Color(0xFF3B82F6),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: Color(0xFF3B82F6),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),

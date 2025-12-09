@@ -95,35 +95,70 @@ class LoginController extends GetxController {
     required String email,
     required Position location,
   }) async {
-    // ... (This function remains the same)
     try {
       final now = DateTime.now();
       final today = DateFormat('yyyy-MM-dd').format(now);
       final docId = '${userId}_$today';
 
-      // Use set with merge to avoid overwriting if somehow called twice
-      await _firestore.collection('attendance').doc(docId).set({
-        'userId': userId,
-        'userName': userName,
-        'userRole': userRole,
-        'email': email,
-        'date': today,
-        'timestamp': FieldValue.serverTimestamp(),
+      // UPDATE the existing record (which was created as absent)
+      await _firestore.collection('attendance').doc(docId).update({
+        'status': 'present',  // Change from absent to present
         'loginTime': DateFormat('HH:mm:ss').format(now),
-        'status': 'present',
         'location': {
           'latitude': location.latitude,
           'longitude': location.longitude,
           'accuracy': location.accuracy,
         },
         'markedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
 
-      debugPrint('✅ Attendance marked successfully for $userName on $today');
+      debugPrint('✅ Attendance updated to PRESENT for $userName on $today');
       return true;
     } catch (e) {
       debugPrint('❌ Error marking attendance: $e');
       return false;
+    }
+  }
+
+  /// Create absent attendance records for all employees at start of day
+  Future<void> initializeDailyAttendance() async {
+    try {
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // Get all employees and HR
+      QuerySnapshot usersSnapshot = await _firestore
+          .collection('users')
+          .where('role', whereIn: ['employee', 'hr'])
+          .get();
+
+      for (var userDoc in usersSnapshot.docs) {
+        final userId = userDoc.id;
+        final attendanceDocId = '${userId}_$today';
+
+        // Check if today's record already exists
+        DocumentSnapshot attendanceDoc = await _firestore
+            .collection('attendance')
+            .doc(attendanceDocId)
+            .get();
+
+        // Only create if doesn't exist (so we don't overwrite present status)
+        if (!attendanceDoc.exists) {
+          await _firestore.collection('attendance').doc(attendanceDocId).set({
+            'userId': userId,
+            'userName': userDoc.get('name') ?? 'Unknown',
+            'userRole': userDoc.get('role') ?? 'employee',
+            'email': userDoc.get('email') ?? '',
+            'date': today,
+            'status': 'absent',
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+          debugPrint('📝 Created absent record for ${userDoc.get('name')}');
+        }
+      }
+
+      debugPrint('✅ Daily attendance initialized for $today');
+    } catch (e) {
+      debugPrint('❌ Error initializing daily attendance: $e');
     }
   }
 
@@ -476,6 +511,10 @@ class LoginController extends GetxController {
         }
       }
 
+      if (requiresAttendanceMarking) {
+        await initializeDailyAttendance();
+      }
+
       // STEP 3: Validation passed (for employee) or allowed (for HR) - Authenticate
       debugPrint('🔐 Proceeding with Firebase authentication...');
       await _auth.signInWithEmailAndPassword(
@@ -613,10 +652,10 @@ class LoginController extends GetxController {
     Get.offAll(() => const LoginPage());
   }
 
-  @override
+  /*@override
   void onClose() {
     emailController.dispose();
     passwordController.dispose();
     super.onClose();
-  }
+  }*/
 }
