@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:hrms/binding/UserManagementBinding.dart';
+import 'package:hrms/views/HRUserManagementPage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hrms/controllers/LoginController.dart';
-
 import '../Layout/MainLayout.dart';
 import '../auth/login_page.dart';
+import '../binding/HRAttendanceBinding.dart';
 import '../binding/HRLeaveManagementBinding.dart';
 import '../binding/HRManagementBinding.dart';
 import '../binding/LeaveRequestBinding.dart';
-import '../controllers/RegisterController.dart';
-import '../controllers/LeaveRequestController.dart';
+import '../views/HRAttendancePage.dart';
 import '../views/HRLeaveManagementPage.dart';
 import '../views/HRManagementPage.dart';
 import '../views/LeaveRequestPage.dart';
@@ -19,8 +20,15 @@ import '../views/DashboardPage.dart';
 
 class NavBar extends StatefulWidget {
   final String? currentRoute;
+  final bool isCollapsed;
+  final VoidCallback? onToggleCollapse;
 
-  const NavBar({super.key, this.currentRoute});
+  const NavBar({
+    super.key,
+    this.currentRoute,
+    this.isCollapsed = false,
+    this.onToggleCollapse,
+  });
 
   @override
   State<NavBar> createState() => _NavBarState();
@@ -31,6 +39,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
   String _userRole = '';
   bool _isLoading = true;
   late AnimationController _animationController;
+  bool _isHovering = false;
 
   @override
   void initState() {
@@ -71,49 +80,107 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 1024;
+    final effectiveCollapsed = isDesktop && widget.isCollapsed;
 
-    return Drawer(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(2, 0),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            _buildHeader(isDesktop),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF2196F3),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        width: effectiveCollapsed ? 80 : 280,
+        child: Drawer(
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFA),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 20,
+                  offset: const Offset(2, 0),
                 ),
-              )
-                  : FadeTransition(
-                opacity: _animationController,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  physics: const BouncingScrollPhysics(),
-                  children: _buildMenuItems(context),
-                ),
-              ),
+              ],
             ),
-            _buildBottomSection(context, isDesktop),
-          ],
+            child: Column(
+              children: [
+                _buildHeader(isDesktop, effectiveCollapsed),
+                if (isDesktop && !effectiveCollapsed)
+                  _buildCollapseButton(effectiveCollapsed),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF2196F3),
+                    ),
+                  )
+                      : FadeTransition(
+                    opacity: _animationController,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      physics: const BouncingScrollPhysics(),
+                      children: _buildMenuItems(context, effectiveCollapsed),
+                    ),
+                  ),
+                ),
+                _buildBottomSection(context, isDesktop, effectiveCollapsed),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildMenuItems(BuildContext context) {
+  Widget _buildCollapseButton(bool isCollapsed) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onToggleCollapse,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2196F3).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFF2196F3).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Collapse Menu',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1976D2),
+                  ),
+                ),
+                Icon(
+                  isCollapsed
+                      ? Icons.keyboard_arrow_right_rounded
+                      : Icons.keyboard_arrow_left_rounded,
+                  color: const Color(0xFF1976D2),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildMenuItems(BuildContext context, bool isCollapsed) {
     List<Widget> menuItems = [];
 
-    menuItems.add(_buildSectionHeader("MAIN MENU"));
+    if (!isCollapsed) {
+      menuItems.add(_buildSectionHeader("MAIN MENU"));
+    }
 
     menuItems.add(
       _buildDrawerItem(
@@ -121,6 +188,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         icon: Icons.dashboard_rounded,
         title: "Dashboard",
         route: '/dashboard',
+        isCollapsed: isCollapsed,
         onTap: () => _navigateToPage(
           context,
           '/dashboard',
@@ -132,32 +200,34 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
 
     switch (_userRole.toLowerCase()) {
       case 'admin':
-        menuItems.add(_buildSectionHeader("ADMINISTRATION"));
+        if (!isCollapsed) menuItems.add(_buildSectionHeader("ADMINISTRATION"));
         menuItems.addAll([
           _buildDrawerItem(
             context,
             icon: Icons.people_rounded,
-            title: "Employee Management",
-            route: '/employee',
+            title: "User Management",
+            route: '/user',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
-              '/employee',
-              'Employee Management',
-              const HRManagementPage(),
-              binding: HRManagementBinding(),
+              '/user',
+              'User Management',
+              const UserManagementPage(),
+              binding: UsermanagementBinding(),
             ),
           ),
         ]);
         break;
 
       case 'hr':
-        menuItems.add(_buildSectionHeader("HUMAN RESOURCES"));
+        if (!isCollapsed) menuItems.add(_buildSectionHeader("HUMAN RESOURCES"));
         menuItems.addAll([
           _buildDrawerItem(
             context,
             icon: Icons.work_rounded,
             title: "Job Management",
             route: '/jobs',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/jobs',
@@ -167,9 +237,24 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
           ),
           _buildDrawerItem(
             context,
+            icon: Icons.calendar_month,
+            title: "Attendance Management",
+            route: '/hr-attendance',
+            isCollapsed: isCollapsed,
+            onTap: () => _navigateToPage(
+              context,
+              '/hr-attendance',
+              'Attendance Management',
+              const HRAttendancePage(),
+              binding: HRAttendanceBinding(),
+            ),
+          ),
+          _buildDrawerItem(
+            context,
             icon: Icons.event_available_rounded,
             title: "Leave Management",
             route: '/leave-management',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/leave-management',
@@ -182,13 +267,14 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         break;
 
       case 'manager':
-        menuItems.add(_buildSectionHeader("MANAGEMENT"));
+        if (!isCollapsed) menuItems.add(_buildSectionHeader("MANAGEMENT"));
         menuItems.addAll([
           _buildDrawerItem(
             context,
             icon: Icons.people_rounded,
             title: "Employee Management",
             route: '/employee',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/employee',
@@ -202,6 +288,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.monetization_on_rounded,
             title: "Payroll Management",
             route: '/payroll',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/payroll',
@@ -213,13 +300,14 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         break;
 
       case 'employee':
-        menuItems.add(_buildSectionHeader("MY WORKSPACE"));
+        if (!isCollapsed) menuItems.add(_buildSectionHeader("MY WORKSPACE"));
         menuItems.addAll([
           _buildDrawerItem(
             context,
             icon: Icons.calendar_today_rounded,
             title: "My Attendance",
             route: '/attendance',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/attendance',
@@ -229,14 +317,14 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
           ),
         ]);
 
-        // LEAVE SECTION FOR EMPLOYEES
-        menuItems.add(_buildSectionHeader("LEAVE MANAGEMENT"));
+        if (!isCollapsed) menuItems.add(_buildSectionHeader("LEAVE MANAGEMENT"));
         menuItems.addAll([
           _buildDrawerItem(
             context,
             icon: Icons.add_circle_outline_rounded,
             title: "Request Leave",
             route: '/request-leave',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/request-leave',
@@ -250,6 +338,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.history_rounded,
             title: "My Leaves",
             route: '/my-leaves',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/my-leaves',
@@ -268,6 +357,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             icon: Icons.settings_rounded,
             title: "Settings",
             route: '/settings',
+            isCollapsed: isCollapsed,
             onTap: () => _navigateToPage(
               context,
               '/settings',
@@ -281,7 +371,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
     return menuItems;
   }
 
-  // NEW UNIFIED NAVIGATION METHOD
   void _navigateToPage(
       BuildContext context,
       String route,
@@ -289,18 +378,15 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
       Widget child, {
         Bindings? binding,
       }) {
-    // Update selected route
     setState(() {
       _selectedRoute = route;
     });
 
-    // Close drawer on mobile
     final isDesktop = MediaQuery.of(context).size.width >= 1024;
     if (!isDesktop) {
       Get.back();
     }
 
-    // Navigate to the new page
     Get.offAll(
           () => MainLayout(
         currentRoute: route,
@@ -313,20 +399,20 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
       child: Text(
         title,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-          color: Colors.grey.shade500,
+          letterSpacing: 1.3,
+          color: Colors.grey.shade600,
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isDesktop) {
+  Widget _buildHeader(bool isDesktop, bool isCollapsed) {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = user?.displayName ?? "User";
     final email = user?.email ?? "user@example.com";
@@ -335,110 +421,126 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-        24,
+        isCollapsed ? 16 : 24,
         MediaQuery.of(context).padding.top + 24,
-        24,
+        isCollapsed ? 16 : 24,
         24,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
+            Color(0xFF0D47A1),
             Color(0xFF1565C0),
             Color(0xFF1976D2),
-            Color(0xFF2196F3),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: Color(0x40000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: isCollapsed ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
             child: CircleAvatar(
-              radius: 36,
+              radius: isCollapsed ? 24 : 36,
               backgroundColor: Colors.white,
               child: Text(
                 initial,
-                style: const TextStyle(
-                  fontSize: 32,
+                style: TextStyle(
+                  fontSize: isCollapsed ? 20 : 32,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1976D2),
+                  color: const Color(0xFF1976D2),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            displayName,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            email,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white.withOpacity(0.9),
-              letterSpacing: 0.2,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (_userRole.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.25),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
+          if (!isCollapsed) ...[
+            const SizedBox(height: 16),
+            Text(
+              displayName,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 0.5,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _getRoleIcon(_userRole),
-                    size: 14,
-                    color: Colors.white,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              email,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withOpacity(0.9),
+                letterSpacing: 0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (_userRole.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _userRole.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getRoleIcon(_userRole),
+                      size: 14,
                       color: Colors.white,
-                      letterSpacing: 1,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      _userRole.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+          if (isCollapsed && isDesktop) ...[
+            const SizedBox(height: 12),
+            IconButton(
+              onPressed: widget.onToggleCollapse,
+              icon: const Icon(
+                Icons.keyboard_arrow_right_rounded,
+                color: Colors.white,
+              ),
+              tooltip: 'Expand Menu',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.2),
               ),
             ),
           ],
@@ -468,77 +570,124 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         required String title,
         required String route,
         required VoidCallback onTap,
+        required bool isCollapsed,
         Color? iconColor,
       }) {
     final isSelected = _selectedRoute == route;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          splashColor: const Color(0xFF2196F3).withOpacity(0.1),
-          highlightColor: const Color(0xFF2196F3).withOpacity(0.05),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? const Color(0xFF2196F3).withOpacity(0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(
-                color: const Color(0xFF2196F3).withOpacity(0.3),
-                width: 1.5,
-              )
-                  : null,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF2196F3).withOpacity(0.15)
-                        : Colors.grey.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isSelected
-                        ? const Color(0xFF1976D2)
-                        : (iconColor ?? Colors.grey.shade700),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected
-                          ? const Color(0xFF1976D2)
-                          : Colors.grey.shade800,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-                if (isSelected)
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Tooltip(
+        message: isCollapsed ? title : '',
+        preferBelow: false,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            splashColor: const Color(0xFF2196F3).withOpacity(0.15),
+            highlightColor: const Color(0xFF2196F3).withOpacity(0.08),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              padding: EdgeInsets.symmetric(
+                horizontal: isCollapsed ? 8 : 16,
+                vertical: 14,
+              ),
+              decoration: BoxDecoration(
+                gradient: isSelected
+                    ? LinearGradient(
+                  colors: [
+                    const Color(0xFF2196F3).withOpacity(0.15),
+                    const Color(0xFF2196F3).withOpacity(0.08),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+                    : null,
+                borderRadius: BorderRadius.circular(14),
+                border: isSelected
+                    ? Border.all(
+                  color: const Color(0xFF2196F3).withOpacity(0.4),
+                  width: 2,
+                )
+                    : null,
+              ),
+              child: Row(
+                mainAxisAlignment:
+                isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+                children: [
                   Container(
-                    width: 4,
-                    height: 20,
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2196F3),
-                      borderRadius: BorderRadius.circular(2),
+                      gradient: isSelected
+                          ? const LinearGradient(
+                        colors: [
+                          Color(0xFF1976D2),
+                          Color(0xFF2196F3),
+                        ],
+                      )
+                          : null,
+                      color: isSelected ? null : Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: isSelected
+                          ? [
+                        BoxShadow(
+                          color: const Color(0xFF2196F3).withOpacity(0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                          : null,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 22,
+                      color: isSelected
+                          ? Colors.white
+                          : (iconColor ?? Colors.grey.shade700),
                     ),
                   ),
-              ],
+                  if (!isCollapsed) ...[
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF1976D2)
+                              : Colors.grey.shade800,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      Container(
+                        width: 5,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF1976D2),
+                              Color(0xFF2196F3),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2196F3).withOpacity(0.5),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -546,60 +695,78 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
     );
   }
 
-  Widget _buildBottomSection(BuildContext context, bool isDesktop) {
+  Widget _buildBottomSection(BuildContext context, bool isDesktop, bool isCollapsed) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.white,
         border: Border(
           top: BorderSide(
-            color: Colors.grey.shade200,
+            color: Colors.grey.shade300,
             width: 1,
           ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _handleLogout(context, isDesktop),
-                borderRadius: BorderRadius.circular(12),
-                splashColor: Colors.red.withOpacity(0.1),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.logout_rounded,
-                          size: 20,
-                          color: Colors.red.shade600,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          "Logout",
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.red.shade600,
-                            letterSpacing: 0.2,
+            child: Tooltip(
+              message: isCollapsed ? 'Logout' : '',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _handleLogout(context, isDesktop),
+                  borderRadius: BorderRadius.circular(14),
+                  splashColor: Colors.red.withOpacity(0.15),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCollapsed ? 8 : 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: isCollapsed
+                          ? MainAxisAlignment.center
+                          : MainAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.logout_rounded,
+                            size: 22,
+                            color: Colors.red.shade700,
                           ),
                         ),
-                      ),
-                    ],
+                        if (!isCollapsed) ...[
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              "Logout",
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red.shade700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -623,48 +790,55 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
         ),
+        elevation: 8,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF2196F3).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.red.shade400,
+                    Colors.red.shade600,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.logout_rounded,
-                color: Color(0xFF1976D2),
+                color: Colors.white,
                 size: 24,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             const Text(
               'Logout',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
         content: const Text(
-          'Are you sure you want to logout?',
+          'Are you sure you want to logout from your account?',
           style: TextStyle(
             fontSize: 15,
             height: 1.5,
+            color: Colors.black87,
           ),
         ),
         contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-        actionsPadding: const EdgeInsets.all(16),
+        actionsPadding: const EdgeInsets.all(20),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
             child: Text(
@@ -672,6 +846,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
               style: TextStyle(
                 color: Colors.grey.shade700,
                 fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
             ),
           ),
@@ -680,7 +855,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
               Navigator.pop(context);
 
               Get.delete<LoginController>();
-              Get.delete<RegisterController>();
 
               await FirebaseAuth.instance.signOut();
 
@@ -692,15 +866,18 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
             child: const Text(
               'Logout',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
             ),
           ),
         ],
