@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:hrms/binding/EmployeePerformanceBinding.dart';
+import 'package:hrms/binding/HRPerformanceBinding.dart';
 import 'package:hrms/binding/UserManagementBinding.dart';
+import 'package:hrms/views/EmployeePerformancePage.dart';
+import 'package:hrms/views/HRPerformancePage.dart';
 import 'package:hrms/views/HRUserManagementPage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hrms/controllers/LoginController.dart';
@@ -50,7 +54,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 300),
     );
     _loadUserRole();
-    _animationController.forward();
   }
 
   @override
@@ -60,11 +63,41 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _loadUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userRole = prefs.getString('userRole') ?? '';
-      _isLoading = false;
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final role = prefs.getString('userRole') ?? '';
+
+      // Debug print to check if role is loaded
+      print('NavBar - Loaded user role: $role');
+
+      if (mounted) {
+        setState(() {
+          _userRole = role;
+          _isLoading = false;
+        });
+        // Animate after loading is complete
+        _animationController.forward();
+      }
+
+      // If role is still empty, try again after a short delay
+      if (role.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        final retryRole = prefs.getString('userRole') ?? '';
+        print('NavBar - Retry loaded role: $retryRole');
+        if (mounted && retryRole.isNotEmpty) {
+          setState(() {
+            _userRole = retryRole;
+          });
+        }
+      }
+    } catch (e) {
+      print('NavBar - Error loading user role: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -82,14 +115,15 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
     final isDesktop = MediaQuery.of(context).size.width >= 1024;
     final effectiveCollapsed = isDesktop && widget.isCollapsed;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        width: effectiveCollapsed ? 80 : 280,
-        child: Drawer(
+    // On desktop, return a Container (sidebar). On mobile, return a Drawer
+    if (isDesktop) {
+      return MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          width: effectiveCollapsed ? 80 : 280,
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFFFAFAFA),
@@ -127,8 +161,46 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
             ),
           ),
         ),
-      ),
-    );
+      );
+    } else {
+      // Mobile: Return standard Drawer
+      return Drawer(
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAFAFA),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(2, 0),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildHeader(isDesktop, effectiveCollapsed),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF2196F3),
+                  ),
+                )
+                    : FadeTransition(
+                  opacity: _animationController,
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    physics: const BouncingScrollPhysics(),
+                    children: _buildMenuItems(context, effectiveCollapsed),
+                  ),
+                ),
+              ),
+              _buildBottomSection(context, isDesktop, effectiveCollapsed),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildCollapseButton(bool isCollapsed) {
@@ -178,6 +250,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
   List<Widget> _buildMenuItems(BuildContext context, bool isCollapsed) {
     List<Widget> menuItems = [];
 
+    // Always show Dashboard
     if (!isCollapsed) {
       menuItems.add(_buildSectionHeader("MAIN MENU"));
     }
@@ -198,6 +271,10 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
       ),
     );
 
+    // Debug: Print current role
+    print('NavBar - Building menu for role: $_userRole');
+
+    // Build menu items based on user role
     switch (_userRole.toLowerCase()) {
       case 'admin':
         if (!isCollapsed) menuItems.add(_buildSectionHeader("ADMINISTRATION"));
@@ -261,6 +338,20 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
               'Leave Management',
               const HRLeaveManagementPage(),
               binding: HRLeaveManagementBinding(),
+            ),
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.track_changes_rounded,
+            title: "Performance Tracking",
+            route: '/performance-tracking',
+            isCollapsed: isCollapsed,
+            onTap: () => _navigateToPage(
+              context,
+              '/performance-tracking',
+              'Performance Tracking',
+              const HRPerformancePage(),
+              binding: HRPerformanceBinding(),
             ),
           ),
         ]);
@@ -347,25 +438,52 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
               binding: LeaveRequestBinding(),
             ),
           ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.work_rounded,
+            title: "Performance Tracking",
+            route: '/performance-tracking-emp',
+            isCollapsed: isCollapsed,
+            onTap: () => _navigateToPage(
+              context,
+              '/performance-tracking-emp',
+              'Performance Tracking',
+              const EmployeePerformancePage(),
+              binding: EmployeePerformanceBinding()
+            ),
+          ),
         ]);
         break;
 
       default:
-        menuItems.add(
-          _buildDrawerItem(
-            context,
-            icon: Icons.settings_rounded,
-            title: "Settings",
-            route: '/settings',
-            isCollapsed: isCollapsed,
-            onTap: () => _navigateToPage(
-              context,
-              '/settings',
-              'Settings',
-              const Center(child: Text('Settings - Coming Soon')),
+      // If role is empty or unknown, show a message
+        if (!isCollapsed && _userRole.isEmpty && !_isLoading) {
+          menuItems.add(
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading your menu...',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
+          );
+        }
+        break;
     }
 
     return menuItems;
@@ -541,6 +659,8 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
               tooltip: 'Expand Menu',
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.2),
+                minimumSize: const Size(40, 40),
+                padding: EdgeInsets.zero,
               ),
             ),
           ],
@@ -661,6 +781,7 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
                               : Colors.grey.shade800,
                           letterSpacing: 0.3,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isSelected)

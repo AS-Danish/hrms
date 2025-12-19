@@ -29,7 +29,7 @@ class LoginController extends GetxController {
   static const int ATTENDANCE_END_MINUTE = 15;
 
   // DEBUG MODE - Set to false in production!
-  static const bool DEBUG_MODE = false;
+  static const bool DEBUG_MODE = true;
 
   // --- NEW METHOD FOR ATTENDANCE TIME ---
   /// Check if current time is within allowed attendance marking window
