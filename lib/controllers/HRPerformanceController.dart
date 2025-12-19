@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart';
-import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -134,6 +133,32 @@ class HRPerformanceController extends GetxController {
     }
 
     filteredTasks.value = filtered;
+  }
+
+  // Get count of active filters
+  int getActiveFiltersCount() {
+    int count = 0;
+    if (selectedEmployeeId.value != 'all') count++;
+    if (statusFilter.value != 'all') count++;
+    if (priorityFilter.value != 'all') count++;
+    return count;
+  }
+
+  // Reset all filters
+  void resetFilters() {
+    selectedEmployeeId.value = 'all';
+    statusFilter.value = 'all';
+    priorityFilter.value = 'all';
+    searchQuery.value = '';
+
+    Get.snackbar(
+      'Filters Reset',
+      'All filters have been cleared',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.blue.shade100,
+      colorText: Colors.blue.shade900,
+      duration: const Duration(seconds: 2),
+    );
   }
 
   // Create a new task
@@ -418,5 +443,13 @@ class HRPerformanceController extends GetxController {
   void onClose() {
     // Clean up resources
     super.onClose();
+  }
+}
+
+// Extension for string capitalization
+extension StringExtension on String {
+  String get capitalize {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1)}';
   }
 }
