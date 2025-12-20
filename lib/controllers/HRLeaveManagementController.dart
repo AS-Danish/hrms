@@ -802,6 +802,30 @@ class HRLeaveManagementController extends GetxController {
     }
   }
 
+  // Get count of active filters
+  int getActiveFiltersCount() {
+    int count = 0;
+    if (statusFilter.value != 'all') count++;
+    if (selectedMonth.value != 'all') count++;
+    return count;
+  }
+
+// Reset all filters
+  void resetFilters() {
+    statusFilter.value = 'all';
+    selectedMonth.value = 'all';
+    searchQuery.value = '';
+
+    Get.snackbar(
+      'Filters Reset',
+      'All filters have been cleared',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.blue.shade100,
+      colorText: Colors.blue.shade900,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
   // Get statistics
   int get totalRequests => leaveRequests.length;
   int get pendingRequests => leaveRequests.where((req) => req.status == 'pending').length;

@@ -1,11 +1,8 @@
-// ============================================================================
-// HR LEAVE MANAGEMENT PAGE - Clean & Minimal Design
-// View and manage all employee leave requests with monthly filter & export
-// ============================================================================
-
+// lib/views/HRLeaveManagementPage.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/HRLeaveManagementController.dart';
+import '../widgets/LeaveFilterBottomSheet.dart';
 
 class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
   const HRLeaveManagementPage({super.key});
@@ -19,7 +16,7 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
       body: CustomScrollView(
         controller: controller.scrollController,
         slivers: [
-          // Simple Header
+          // Header Section
           SliverToBoxAdapter(
             child: Container(
               padding: EdgeInsets.all(isMobile ? 16 : 24),
@@ -27,201 +24,55 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today, color: Color(0xFF3B82F6), size: 28),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Leave Management',
-                        style: TextStyle(
-                          fontSize: isMobile ? 22 : 28,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E293B),
-                        ),
-                      ),
-                      const Spacer(),
-                      if (!isMobile)
-                        IconButton(
-                          onPressed: controller.refreshLeaveRequests,
-                          icon: const Icon(Icons.refresh, color: Color(0xFF64748B)),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Obx(() => Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _buildStatCard(
-                        'Total',
-                        controller.totalRequests.toString(),
-                        Colors.blue,
-                        isMobile,
-                      ),
-                      _buildStatCard(
-                        'Pending',
-                        controller.pendingRequests.toString(),
-                        Colors.orange,
-                        isMobile,
-                      ),
-                      _buildStatCard(
-                        'Approved',
-                        controller.approvedRequests.toString(),
-                        Colors.green,
-                        isMobile,
-                      ),
-                      _buildStatCard(
-                        'Rejected',
-                        controller.rejectedRequests.toString(),
-                        Colors.red,
-                        isMobile,
-                      ),
-                    ],
-                  )),
+                  _buildHeader(isMobile),
+                  const SizedBox(height: 20),
+                  _buildStatistics(isMobile),
                 ],
               ),
             ),
           ),
 
-          // Filter Section
-          SliverToBoxAdapter(
-            child: Container(
-              margin: EdgeInsets.all(isMobile ? 16 : 24),
-              padding: EdgeInsets.all(isMobile ? 16 : 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Filters',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      // Export Button
-                      Obx(() => ElevatedButton.icon(
-                        onPressed: controller.filteredRequests.isEmpty
-                            ? null
-                            : controller.exportToExcel,
-                        icon: const Icon(Icons.download, size: 18),
-                        label: Text(isMobile ? 'Export' : 'Export to Excel'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 12 : 16,
-                            vertical: 10,
-                          ),
-                        ),
-                      )),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Status Filter
-                  const Text(
-                    'Status',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Obx(() => Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildFilterChip('All', 'all'),
-                      _buildFilterChip('Pending', 'pending'),
-                      _buildFilterChip('Approved', 'approved'),
-                      _buildFilterChip('Rejected', 'rejected'),
-                    ],
-                  )),
-
-                  const SizedBox(height: 16),
-
-                  // Month Filter
-                  const Text(
-                    'Month',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Obx(() => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButton<String>(
-                      value: controller.selectedMonth.value,
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      icon: const Icon(Icons.arrow_drop_down),
-                      items: controller.monthOptions.map((month) {
-                        return DropdownMenuItem(
-                          value: month['value'],
-                          child: Text(month['label']!),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          controller.selectedMonth.value = value;
-                        }
-                      },
-                    ),
-                  )),
-                ],
-              ),
-            ),
-          ),
-
-          // Search Bar
+          // Search, Filter, and Export Bar
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
-              child: TextField(
-                onChanged: (value) => controller.searchQuery.value = value,
-                decoration: InputDecoration(
-                  hintText: 'Search by employee name or ID...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 16 : 24,
+                16,
+                isMobile ? 16 : 24,
+                0,
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: _buildSearchBar()),
+                      const SizedBox(width: 12),
+                      _buildFilterButton(context),
+                      const SizedBox(width: 8),
+                      _buildExportButton(isMobile),
+                    ],
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
+                ],
               ),
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          // Active Filters Display
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 24,
+                vertical: 12,
+              ),
+              child: _buildActiveFilters(),
+            ),
+          ),
 
           // Leave Requests List
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           Obx(() {
-            if (controller.isLoading.value && controller.filteredRequests.isEmpty) {
+            if (controller.isLoading.value &&
+                controller.filteredRequests.isEmpty) {
               return const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
               );
@@ -229,41 +80,7 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
 
             if (controller.filteredRequests.isEmpty) {
               return SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        controller.leaveRequests.isEmpty
-                            ? Icons.inbox
-                            : Icons.search_off,
-                        size: 64,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        controller.leaveRequests.isEmpty
-                            ? 'No leave requests yet'
-                            : 'No results found',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        controller.leaveRequests.isEmpty
-                            ? 'Leave requests will appear here'
-                            : 'Try a different search term or filter',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                child: _buildEmptyState(),
               );
             }
 
@@ -276,10 +93,10 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
               ),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    final request = controller.filteredRequests[index];
-                    return _buildLeaveRequestCard(request, isMobile);
-                  },
+                      (context, index) => _buildLeaveRequestCard(
+                    controller.filteredRequests[index],
+                    isMobile,
+                  ),
                   childCount: controller.filteredRequests.length,
                 ),
               ),
@@ -305,7 +122,74 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color, bool isMobile) {
+  Widget _buildHeader(bool isMobile) {
+    return Row(
+      children: [
+        const Icon(Icons.calendar_today, color: Color(0xFF3B82F6), size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Leave Management',
+            style: TextStyle(
+              fontSize: isMobile ? 22 : 28,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: controller.refreshLeaveRequests,
+          icon: const Icon(Icons.refresh, color: Color(0xFF64748B)),
+          tooltip: 'Refresh',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatistics(bool isMobile) {
+    return Obx(() => Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _buildStatCard(
+          'Total',
+          controller.totalRequests.toString(),
+          Icons.inbox,
+          Colors.blue,
+          isMobile,
+        ),
+        _buildStatCard(
+          'Pending',
+          controller.pendingRequests.toString(),
+          Icons.schedule,
+          Colors.orange,
+          isMobile,
+        ),
+        _buildStatCard(
+          'Approved',
+          controller.approvedRequests.toString(),
+          Icons.check_circle,
+          Colors.green,
+          isMobile,
+        ),
+        _buildStatCard(
+          'Rejected',
+          controller.rejectedRequests.toString(),
+          Icons.cancel,
+          Colors.red,
+          isMobile,
+        ),
+      ],
+    ));
+  }
+
+  Widget _buildStatCard(
+      String label,
+      String value,
+      IconData icon,
+      Color color,
+      bool isMobile,
+      ) {
     return Container(
       width: isMobile ? (Get.width - 44) / 2 : 140,
       padding: EdgeInsets.all(isMobile ? 12 : 16),
@@ -317,6 +201,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, color: color, size: isMobile ? 20 : 24),
+          const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
@@ -339,20 +225,196 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = controller.statusFilter.value == value;
-    return FilterChip(
+  Widget _buildSearchBar() {
+    return TextField(
+      onChanged: (value) => controller.searchQuery.value = value,
+      decoration: InputDecoration(
+        hintText: 'Search employees...',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(BuildContext context) {
+    return Obx(() {
+      final activeFiltersCount = controller.getActiveFiltersCount();
+
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ElevatedButton.icon(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const LeaveFilterBottomSheet(),
+              );
+            },
+            icon: const Icon(Icons.filter_list, size: 20),
+            label: const Text('Filter'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF3B82F6),
+              elevation: 0,
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+          ),
+          if (activeFiltersCount > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF3B82F6),
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Text(
+                  activeFiltersCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildExportButton(bool isMobile) {
+    return Obx(() => ElevatedButton.icon(
+      onPressed: controller.filteredRequests.isEmpty
+          ? null
+          : controller.exportToExcel,
+      icon: const Icon(Icons.download, size: 18),
+      label: Text(isMobile ? '' : 'Export'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF10B981),
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 16,
+          vertical: 12,
+        ),
+      ),
+    ));
+  }
+
+  Widget _buildActiveFilters() {
+    return Obx(() {
+      final activeFilters = <Widget>[];
+
+      if (controller.statusFilter.value != 'all') {
+        activeFilters.add(_buildFilterChipDisplay(
+          'Status: ${controller.statusFilter.value.capitalizeFirst}',
+              () => controller.statusFilter.value = 'all',
+        ));
+      }
+
+      if (controller.selectedMonth.value != 'all') {
+        final monthLabel = controller.monthOptions.firstWhere(
+              (m) => m['value'] == controller.selectedMonth.value,
+        )['label']!;
+        activeFilters.add(_buildFilterChipDisplay(
+          'Month: $monthLabel',
+              () => controller.selectedMonth.value = 'all',
+        ));
+      }
+
+      if (activeFilters.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: activeFilters,
+      );
+    });
+  }
+
+  Widget _buildFilterChipDisplay(String label, VoidCallback onRemove) {
+    return Chip(
       label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        controller.statusFilter.value = value;
-      },
-      selectedColor: const Color(0xFF3B82F6).withOpacity(0.2),
-      checkmarkColor: const Color(0xFF3B82F6),
-      backgroundColor: Colors.grey.shade100,
-      labelStyle: TextStyle(
-        color: isSelected ? const Color(0xFF3B82F6) : Colors.grey.shade700,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      deleteIcon: const Icon(Icons.close, size: 16),
+      onDeleted: onRemove,
+      backgroundColor: const Color(0xFF3B82F6).withOpacity(0.1),
+      labelStyle: const TextStyle(
+        fontSize: 12,
+        color: Color(0xFF3B82F6),
+        fontWeight: FontWeight.w500,
+      ),
+      deleteIconColor: const Color(0xFF3B82F6),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              controller.leaveRequests.isEmpty
+                  ? Icons.inbox
+                  : Icons.search_off,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              controller.leaveRequests.isEmpty
+                  ? 'No leave requests yet'
+                  : 'No results found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              controller.leaveRequests.isEmpty
+                  ? 'Leave requests will appear here'
+                  : 'Try a different search term or filter',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -410,9 +472,14 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                 ),
                 // Status Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: controller.getStatusColor(request.status).withOpacity(0.1),
+                    color: controller
+                        .getStatusColor(request.status)
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -449,7 +516,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.event_note, size: 16, color: Colors.grey.shade600),
+                    Icon(Icons.event_note,
+                        size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 8),
                     Text(
                       request.leaveType,
@@ -463,13 +531,16 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                    Icon(Icons.calendar_today,
+                        size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 8),
-                    Text(
-                      '${controller.formatDate(request.startDate)} - ${controller.formatDate(request.endDate)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
+                    Expanded(
+                      child: Text(
+                        '${controller.formatDate(request.startDate)} - ${controller.formatDate(request.endDate)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                     ),
                   ],
@@ -477,7 +548,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.timelapse, size: 16, color: Colors.grey.shade600),
+                    Icon(Icons.timelapse,
+                        size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 8),
                     Text(
                       '${request.numberOfDays} day${request.numberOfDays > 1 ? 's' : ''}',
@@ -499,7 +571,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.note, size: 16, color: Colors.grey.shade600),
+                        Icon(Icons.note,
+                            size: 16, color: Colors.grey.shade600),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -527,7 +600,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.attach_file, size: 16, color: Colors.blue.shade700),
+                          Icon(Icons.attach_file,
+                              size: 16, color: Colors.blue.shade700),
                           const SizedBox(width: 6),
                           Text(
                             request.documentName ?? 'View Document',
@@ -568,7 +642,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => controller.approveLeaveRequest(request.id),
+                      onPressed: () =>
+                          controller.approveLeaveRequest(request.id),
                       icon: const Icon(Icons.check, size: 18),
                       label: const Text('Approve'),
                       style: ElevatedButton.styleFrom(
@@ -584,7 +659,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
           ],
 
           // Rejection Reason (if rejected)
-          if (request.status == 'rejected' && request.rejectionReason != null) ...[
+          if (request.status == 'rejected' &&
+              request.rejectionReason != null) ...[
             const Divider(height: 1),
             Container(
               padding: const EdgeInsets.all(12),
@@ -592,7 +668,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.red.shade700),
+                  Icon(Icons.info_outline,
+                      size: 16, color: Colors.red.shade700),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -672,7 +749,8 @@ class HRLeaveManagementPage extends GetView<HRLeaveManagementController> {
                 return;
               }
               Get.back();
-              controller.rejectLeaveRequest(requestId, reasonController.text.trim());
+              controller.rejectLeaveRequest(
+                  requestId, reasonController.text.trim());
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
