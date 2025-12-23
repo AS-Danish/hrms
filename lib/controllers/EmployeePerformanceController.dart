@@ -12,7 +12,7 @@ class EmployeePerformanceController extends GetxController {
 
   // Current user info
   late String currentUserId;
-  late String currentUserName;
+  final RxString currentUserName = 'Loading...'.obs; // Set a default value
   late String currentUserEmail;
 
   // Observable lists
@@ -50,7 +50,7 @@ class EmployeePerformanceController extends GetxController {
     } else {
       // Fallback to arguments if no auth user
       currentUserId = Get.arguments?['userId'] ?? 'employee_001';
-      currentUserName = Get.arguments?['userName'] ?? 'Employee Name';
+      currentUserName.value = Get.arguments?['userName'] ?? 'Employee Name';
       currentUserEmail = Get.arguments?['userEmail'] ?? 'employee@example.com';
       print('⚠️ DEBUG: Using fallback user data');
       print('🔍 DEBUG: User ID: $currentUserId');
@@ -70,12 +70,12 @@ class EmployeePerformanceController extends GetxController {
       final userDoc = await _firestore.collection('users').doc(currentUserId).get();
       if (userDoc.exists) {
         final data = userDoc.data()!;
-        currentUserName = data['name'] ?? 'Employee Name';
+        currentUserName.value = data['name'] ?? 'Employee Name';
         print('✅ DEBUG: User name loaded: $currentUserName');
       }
     } catch (e) {
       print('❌ DEBUG: Error loading user data: $e');
-      currentUserName = 'Employee Name';
+      currentUserName.value = 'Employee Name';
     }
 
     // Now load tasks
@@ -198,10 +198,10 @@ class EmployeePerformanceController extends GetxController {
         taskTitle: title,
         taskDescription: description,
         assignedTo: currentUserId,
-        assignedToName: currentUserName,
+        assignedToName: currentUserName.value,
         assignedToEmail: currentUserEmail,
         assignedBy: currentUserId,
-        assignedByName: currentUserName,
+        assignedByName: currentUserName.value,
         priority: priority,
         status: 'pending',
         assignedDate: DateTime.now(),
@@ -297,6 +297,35 @@ class EmployeePerformanceController extends GetxController {
         backgroundColor: Colors.red.shade100,
       );
     }
+  }
+
+  // Add these methods to your EmployeePerformanceController.dart
+// At the end of the class, before onClose()
+
+  // Get count of active filters
+  int getActiveFiltersCount() {
+    int count = 0;
+    if (taskTypeFilter.value != 'all') count++;
+    if (statusFilter.value != 'all') count++;
+    if (priorityFilter.value != 'all') count++;
+    return count;
+  }
+
+  // Reset all filters
+  void resetFilters() {
+    taskTypeFilter.value = 'all';
+    statusFilter.value = 'all';
+    priorityFilter.value = 'all';
+    searchQuery.value = '';
+
+    Get.snackbar(
+      'Filters Reset',
+      'All filters have been cleared',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.blue.shade100,
+      colorText: Colors.blue.shade900,
+      duration: const Duration(seconds: 2),
+    );
   }
 
   // Delete self-created task
