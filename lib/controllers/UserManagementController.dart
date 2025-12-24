@@ -135,6 +135,9 @@ class UserManagementController extends GetxController {
           // Consider using Cloud Functions for better user management
         }
 
+        // Close the dialog
+        Get.back();
+
         Get.snackbar(
           "Success",
           "User created successfully with role: $role",
