@@ -378,22 +378,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         break;
 
       case 'employee':
-        if (!isCollapsed) menuItems.add(_buildSectionHeader("MY WORKSPACE"));
-        menuItems.addAll([
-          _buildDrawerItem(
-            context,
-            icon: Icons.calendar_today_rounded,
-            title: "My Attendance",
-            route: '/attendance',
-            isCollapsed: isCollapsed,
-            onTap: () => _navigateToPage(
-              context,
-              '/attendance',
-              'My Attendance',
-              const Center(child: Text('My Attendance - Coming Soon')),
-            ),
-          ),
-        ]);
 
         if (!isCollapsed) menuItems.add(_buildSectionHeader("LEAVE MANAGEMENT"));
         menuItems.addAll([
