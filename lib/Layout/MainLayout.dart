@@ -182,50 +182,6 @@ class _MainLayoutState extends State<MainLayout> {
               letterSpacing: 0.5,
             ),
           ),
-          const Spacer(),
-
-          // Search Bar (Optional - can be enabled)
-          // Container(
-          //   width: 300,
-          //   height: 42,
-          //   decoration: BoxDecoration(
-          //     color: Colors.grey.shade100,
-          //     borderRadius: BorderRadius.circular(12),
-          //   ),
-          //   child: TextField(
-          //     decoration: InputDecoration(
-          //       hintText: 'Search...',
-          //       prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
-          //       border: InputBorder.none,
-          //       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(width: 16),
-
-          // Action Buttons
-          ...(widget.actions ?? [
-            _buildAppBarIconButton(
-              icon: Icons.notifications_outlined,
-              onPressed: () {},
-              tooltip: 'Notifications',
-              badge: true,
-            ),
-            const SizedBox(width: 8),
-            _buildAppBarIconButton(
-              icon: Icons.help_outline_rounded,
-              onPressed: () {},
-              tooltip: 'Help',
-            ),
-            const SizedBox(width: 8),
-            _buildAppBarIconButton(
-              icon: Icons.settings_outlined,
-              onPressed: () {},
-              tooltip: 'Settings',
-            ),
-            const SizedBox(width: 16),
-            _buildProfileButton(),
-          ]),
         ],
       ),
     );
