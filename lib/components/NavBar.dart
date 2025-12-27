@@ -301,19 +301,6 @@ class _NavBarState extends State<NavBar> with SingleTickerProviderStateMixin {
         menuItems.addAll([
           _buildDrawerItem(
             context,
-            icon: Icons.work_rounded,
-            title: "Job Management",
-            route: '/jobs',
-            isCollapsed: isCollapsed,
-            onTap: () => _navigateToPage(
-              context,
-              '/jobs',
-              'Job Management',
-              const Center(child: Text('Job Management - Coming Soon')),
-            ),
-          ),
-          _buildDrawerItem(
-            context,
             icon: Icons.calendar_month,
             title: "Attendance Management",
             route: '/hr-attendance',
