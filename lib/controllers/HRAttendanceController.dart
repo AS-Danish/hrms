@@ -1,4 +1,5 @@
 // lib/controllers/HRAttendanceController.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,7 @@ import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:open_file/open_file.dart';
+import 'package:universal_html/html.dart' as html;
 
 import '../models/AttendanceModel.dart';
 
@@ -529,50 +531,86 @@ class HRAttendanceController extends GetxController {
       sheetObject.setColumnWidth(1, 25); // Name
       sheetObject.setColumnWidth(2, 30); // Email
 
-      // Request storage permission
-      if (Platform.isAndroid) {
-        PermissionStatus status;
-
-        // Check Android version
-        if (await Permission.photos.status.isDenied) {
-          // Android 13+ uses photos/videos permissions
-          status = await Permission.photos.request();
-        } else {
-          // Android 12 and below use storage permission
-          status = await Permission.storage.request();
-        }
-
-        // If still not granted, try manageExternalStorage
-        if (!status.isGranted) {
-          await Permission.manageExternalStorage.request();
-        }
-      }
-
-      // Get directory to save file
-      Directory? directory;
-      String fileName = 'Attendance_${DateFormat('yyyy-MM-dd').format(selectedDate.value)}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-
-      if (Platform.isAndroid) {
-        // Try to save in Downloads folder
-        directory = Directory('/storage/emulated/0/Download');
-        if (!await directory.exists()) {
-          directory = await getExternalStorageDirectory();
-        }
-      } else if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-
-      if (directory == null) {
-        throw Exception('Could not access storage directory');
-      }
-
-      // Save the file
-      String filePath = '${directory.path}/$fileName';
+      // Generate file bytes
       var fileBytes = excel.save();
 
-      if (fileBytes != null) {
+      if (fileBytes == null) {
+        throw Exception('Failed to generate Excel file');
+      }
+
+      String fileName = 'Attendance_${DateFormat('yyyy-MM-dd').format(selectedDate.value)}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+
+      // Platform-specific file handling
+      if (kIsWeb) {
+        // WEB: Download file directly in browser
+        final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.document.createElement('a') as html.AnchorElement
+          ..href = url
+          ..style.display = 'none'
+          ..download = fileName;
+        html.document.body?.children.add(anchor);
+        anchor.click();
+        html.document.body?.children.remove(anchor);
+        html.Url.revokeObjectUrl(url);
+
+        // Close loading dialog
+        Get.back();
+
+        print('✅ Excel file downloaded: $fileName');
+
+        // Show success message for web
+        Get.snackbar(
+          'Export Complete',
+          '${filteredRecords.length} attendance records exported successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade400,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+
+      } else {
+        // MOBILE: Save to device storage
+        // Request storage permission
+        if (Platform.isAndroid) {
+          PermissionStatus status;
+
+          // Check Android version
+          if (await Permission.photos.status.isDenied) {
+            // Android 13+ uses photos/videos permissions
+            status = await Permission.photos.request();
+          } else {
+            // Android 12 and below use storage permission
+            status = await Permission.storage.request();
+          }
+
+          // If still not granted, try manageExternalStorage
+          if (!status.isGranted) {
+            await Permission.manageExternalStorage.request();
+          }
+        }
+
+        // Get directory to save file
+        Directory? directory;
+
+        if (Platform.isAndroid) {
+          // Try to save in Downloads folder
+          directory = Directory('/storage/emulated/0/Download');
+          if (!await directory.exists()) {
+            directory = await getExternalStorageDirectory();
+          }
+        } else if (Platform.isIOS) {
+          directory = await getApplicationDocumentsDirectory();
+        } else {
+          directory = await getDownloadsDirectory();
+        }
+
+        if (directory == null) {
+          throw Exception('Could not access storage directory');
+        }
+
+        // Save the file
+        String filePath = '${directory.path}/$fileName';
         File file = File(filePath);
         await file.create(recursive: true);
         await file.writeAsBytes(fileBytes);
@@ -680,8 +718,6 @@ class HRAttendanceController extends GetxController {
           colorText: Colors.white,
           duration: const Duration(seconds: 3),
         );
-      } else {
-        throw Exception('Failed to generate Excel file');
       }
     } catch (e) {
       // Close loading dialog if open
